@@ -1,0 +1,12 @@
+setmapping2 YUYV 640 480 20.0 JeVois PythonSandbox
+
+
+
+## command to switch modules 
+setpar serout USB # to get text results through serial-over-USB, or use Hard if you want results on the 4-pin serial
+ setpar serlog USB # to get log messages through serial-over-USB, or use Hard if you want them on the 4-pin serial
+ setmapping2 YUYV 320 240 25.0 JeVois PythonParallel
+ streamon
+
+ setmapping2 YUYV 320 240 10 Jevois ColorFiltering 
+ setmapping2 YUYV 176 144 120.0 JeVois DemoEyeTracker
