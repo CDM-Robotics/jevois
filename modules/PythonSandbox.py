@@ -2,27 +2,11 @@ import libjevois as jevois
 import cv2
 import numpy as np
 
-## Simple example of image processing using OpenCV in Python on JeVois
+## Using OpenCV to detect field elements
 #
-# This module is here for you to experiment with Python OpenCV on JeVois.
-#
-# By default, we get the next video frame from the camera as an OpenCV BGR (color) image named 'inimg'.
-# We then apply some image processing to it to create an output BGR image named 'outimg'.
-# We finally add some text drawings to outimg and send it to host over USB.
-#
-# See http://jevois.org/tutorials for tutorials on getting started with programming JeVois in Python without having
-# to install any development software on your host computer.
-#
-# @author Laurent Itti
+# @author Cole Hersowitz
 # 
 # @videomapping YUYV 352 288 30.0 YUYV 352 288 30.0 JeVois PythonSandbox
-# @email itti\@usc.edu
-# @address University of Southern California, HNB-07A, 3641 Watt Way, Los Angeles, CA 90089-2520, USA
-# @copyright Copyright (C) 2017 by Laurent Itti, iLab and the University of Southern California
-# @mainurl http://jevois.org
-# @supporturl http://jevois.org/doc
-# @otherurl http://iLab.usc.edu
-# @license GPL v3
 # @distribution Unrestricted
 # @restrictions None
 # @ingroup modules
@@ -31,7 +15,7 @@ class PythonSandbox:
     ## Constructor
     def __init__(self):
         # Instantiate a JeVois Timer to measure our processing framerate:
-        self.timer = jevois.Timer("sandbox", 100, jevois.LOG_INFO)
+        self.timer = jevois.Timer("detector", 100, jevois.LOG_INFO)
         
     # ###################################################################################################
     ## Process function with USB output
@@ -44,46 +28,39 @@ class PythonSandbox:
         # Start measuring image processing time (NOTE: does not account for input conversion time):
         self.timer.start()
 
-        # Detect edges using the Laplacian algorithm from OpenCV:
-        #
-        # Replace the line below by your own code! See for example
-        # - http://docs.opencv.org/trunk/d4/d13/tutorial_py_filtering.html
-        # - http://docs.opencv.org/trunk/d9/d61/tutorial_py_morphological_ops.html
-        # - http://docs.opencv.org/trunk/d5/d0f/tutorial_py_gradients.html
-        # - http://docs.opencv.org/trunk/d7/d4d/tutorial_py_thresholding.html
-        #
-        # and so on. When they do "img = cv2.imread('name.jpg', 0)" in these tutorials, the last 0 means they want a
-        # gray image, so you should use getCvGRAY() above in these cases. When they do not specify a final 0 in imread()
-        # then usually they assume color and you should use getCvBGR() here.
-        #
-        # The simplest you could try is:
-        #    outimg = inimg
-        # which will make a simple copy of the input image to output.
-        #outimg = cv2.Laplacian(inimg, -1, ksize=3, scale=0.25, delta=127)
+        # setup query image (training)
+        '''query_img = cv2.imread('test.png', 0)
 
-        '''rgb_boundary = [
-            ([204, 255, 255], [0, 102, 204]),
-            ([204, 255, 255], [0, 102, 204]),
-            ([153, 31, 0], [255, 71, 26])
-        ]
+        # create surf object
+        surf = cv2.SURF(400)
 
-        lower_rgb = None
-        upper_rgb = None
-        for (lower, upper) in rgb_boundary:
-            lower_rgb = np.array(lower, dtype="uint8")
-            upper_rgb = np.array(upper, dtype="uint8")'''
-        hsv = cv2.cvtColor(inimg, cv2.COLOR_BGR2HSV)
-        lower_red = np.array([110,50,50])
-        upper_red = np.array([130,255,255])
- 
-        # Here we are defining range of bluecolor in HSV
-        # This creates a mask of blue coloured 
-        # objects found in the frame.
-        mask = cv2.inRange(hsv, lower_red, upper_red)
-        outimg = cv2.bitwise_and(inimg, inimg, mask=mask)
-                
+        # find keypoints and descriptors for training and actual image
+        kps_target, desc_target = surf.detectAndCompute(query_img, None)
+        kps_actual, desc_actual = surf.detectAndCompute(inimg, None)
+
+        # see if training and actual match
+        bf = cv2.BFMatcher()
+        matches = bf.knnMatch(desc_target, desc_actual, k=2)
+
+        # ratio test for match 
+        good = []
+        for m,n in matches:
+            if m.distance < 0.75*n.distance:
+                good.append([m])
+
+        # create output img
+        outimg = cv2.drawMatchesKnn(query_img, kps_target, inimg, kps_actual, good, flags=2)'''
+        marker = find_marker(cv2.imread('test.png', 0))
+        focalLength = (marker[1][0] * 24.0) / 5.0
+        inches = distanceToCam(5.0, focalLength, marker[1][0])
+
+        box = np.int0(cv2.cv.BoxPoints(marker))
+        cv2.drawContours(inimg, [box], -1, (0, 255, 0), 2)
+        cv2.imshow("image", inimg)
+        cv2.waitKey(0)
+            
         # Write a title:
-        cv2.putText(outimg, "JeVois Python Test", (3, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255,255,255),
+        cv2.putText(outimg, "6072 Field Object Detect", (3, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255,255,255),
                     1, cv2.LINE_AA)
         
         # Write frames/s info from our timer into the edge map (NOTE: does not account for output conversion time):
@@ -94,3 +71,47 @@ class PythonSandbox:
         # Convert our BGR output image to video output format and send to host over USB. If your output image is not
         # BGR, you can use sendCvGRAY(), sendCvRGB(), or sendCvRGBA() as appropriate:
         outframe.sendCvBGR(outimg)
+
+    def get_training_images():
+        imgs = []
+        for img in open('dir_here'): #iterate through all images in training directory
+            imgs.append(img)
+        return imgs
+
+    def get_surf_points():
+        kpsAndDesc = []
+        for img in get_training_images():
+            cv_img = cv2.imread(image, 0)
+            kp, des = surf.detectAndCompute(cv_img, None)
+            kpsAndDesc.append([kp, des])
+        return kpsAndDesc
+
+    def find_matches(desc_actual):
+        bf = cv2.BFMatcher()
+        matches = []
+        surf_pts = self.get_surf_points()
+        for pt in surf_pts:
+            matches.append(bf.knnMatch(pt[1], desc_actual))
+        return matches 
+
+    def apply_ratio_test(matches):
+        good = []
+        for m,n in matches:
+            if m.distance < 0.75*n.distance:
+                good.append([m])
+        return good 
+
+    # tutorial ref: https://www.pyimagesearch.com/2015/01/19/find-distance-camera-objectmarker-using-python-opencv/
+    def find_marker(img):
+        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        gray = cv2.GaussianBlur(gray, (5, 5), 0)
+        edged = cv2.Canny(gray, 35, 125)
+
+        # find the contours in the image
+        (cnts, _) = cv2.findContours(edged.copy(), cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
+        c = max(cnts, key = cv2.contourArea)
+
+        return cv2.minAreaRect(c)
+
+    def distanceToCam(knownWidth, focalLength, perWidth):
+        return (knownWidth * focalLength) / perWidth;
