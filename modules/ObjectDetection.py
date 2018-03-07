@@ -15,7 +15,7 @@ class ObjectDetection:
         # Get the next camera image (may block until it is captured) and here convert it to OpenCV BGR by default. If
         # you need a grayscale image instead, just use getCvGRAY() instead of getCvBGR(). Also supported are getCvRGB()
         # and getCvRGBA():
-        inimg = inframe.getCvBGR()
+        inimg = inframe.getCvRGB()
         
         # Start measuring image processing time (NOTE: does not account for input conversion time):
         self.timer.start()
