@@ -40,6 +40,7 @@ class ScaleDetect:
         # you need a grayscale image instead, just use getCvGRAY() instead of getCvBGR(). Also supported are getCvRGB()
         # and getCvRGBA():
         inimg = inframe.getCvBGR()
+
         
         # Start measuring image processing time (NOTE: does not account for input conversion time):
         self.timer.start()
@@ -73,17 +74,36 @@ class ScaleDetect:
             lower_rgb = np.array(lower, dtype="uint8")
             upper_rgb = np.array(upper, dtype="uint8")'''
         hsv = cv2.cvtColor(inimg, cv2.COLOR_BGR2HSV)
+
         lower_red = np.array([30,150,50])
         upper_red = np.array([255,255,180])
+
+        # purple identifies the center pivot 
+        lower_purple = np.array([0, 0, 0])
+        upper_purple = np.array([0, 0,0 ])
  
         # Here we are defining range of bluecolor in HSV
         # This creates a mask of blue coloured 
         # objects found in the frame.
-        mask = cv2.inRange(hsv, lower_red, upper_red)
+        red_mask = cv2.inRange(hsv, lower_red, upper_red)
+        blue_mask = cv2.inRange(hsv, lower_purple, upper_purple)
+
+        mask = red_mask + blue_mask
+
+        # clean up the mask a bit
+        '''kernelOpen = np.ones((5,5))
+        kernelClose = np.ones((20, 20))
+
+        maskOpen = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernelOpen)
+        maskClose = cv2.morphologyEx(maskOpen, cv2.MORPH_CLOSE, kernelClose)
+        maskFinal = maskClose'''
+        #conts, h = cv2.findContours(maskFinal.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+
+
         outimg = cv2.bitwise_and(inimg, inimg, mask=mask)
                 
         # Write a title:
-        cv2.putText(outimg, "JeVois Recognize Scale", (3, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255,255,255),
+        cv2.putText(outimg, "JeVois Recognize Scale {}".format(type(mask)), (3, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255,255,255),
                     1, cv2.LINE_AA)
         
         # Write frames/s info from our timer into the edge map (NOTE: does not account for output conversion time):
