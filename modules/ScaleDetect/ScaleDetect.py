@@ -75,14 +75,14 @@ class ScaleDetect:
             lower_rgb = np.array(lower, dtype="uint8")
             upper_rgb = np.array(upper, dtype="uint8")'''
         hsv1 = cv2.cvtColor(inimg, cv2.COLOR_BGR2HSV)
-        hsv2 = cv2.cvtColor(inimg, cv2.COLOR_BGR2HSV)
+        hsv2 = cv2.cvtColor(inimg.copy(), cv2.COLOR_BGR2HSV)
 
         lower_red = np.array([30,150,50])
         upper_red = np.array([255,255,180])
 
         # purple identifies the center pivot 
-        lower_purple = np.array([255, 255, 0])
-        upper_purple = np.array([255, 255, 150])
+        lower_purple = np.array([232, 232, 232])
+        upper_purple = np.array([255, 255, 255])
  
         # Here we are defining range of bluecolor in HSV
         # This creates a mask of blue coloured 
@@ -108,6 +108,36 @@ class ScaleDetect:
 
         outfinal = cv2.add(outimg, outimg2)
 
+        ## find the contours ###
+        cnts = cv2.findContours(mask.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)[-2]
+        cnts2 = cv2.findContours(blue_mask.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)[-2]
+
+        pt1 = None
+        pt2 = None
+        if len(cnts) > 0:
+            c = max(cnts, key=cv2.contourArea)
+            ((x, y), radius) = cv2.minEnclosingCircle(c)
+            M = cv2.moments(c)
+            center = (int(M["m10"] / M["m00"]), int(M["m01"] / M["m00"]))
+            # make sure a min size is met 
+            if radius > 20:
+                pt1 = center
+                cv2.circle(outfinal, center, 5, (0, 0, 255), -1)
+
+        if len(cnts2) > 0:
+            c2 = max(cnts2, key=cv2.contourArea)
+            ((x2, y2), radius2) = cv2.minEnclosingCircle(c2)
+            M2 = cv2.moments(c2)
+            center2 = (int(M2["m10"] / M2["m00"]), int(M2["m01"] / M2["m00"]))
+
+            if radius2 > 20:
+                pt2 = center2
+                cv2.circle(outfinal, center2, 5, (255, 0, 255), -1)
+
+        vert_dist = 0.1
+        if pt2 != None and pt1 != None:
+            vert_dist = pt1[1] - pt2[1]
+            horizontal_dist = pt1[0] - pt2[0]
         ## attempt to find angle ###
         #moments1 = cv2.moments(outimg.resize(480, 640), 0)
         #moments2 = cv2.moments(outimg, 0)
@@ -116,7 +146,7 @@ class ScaleDetect:
 
                 
         # Write a title:
-        cv2.putText(outfinal, "JeVois Recognize Scale", (3, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255,255,255),
+        cv2.putText(outfinal, "JeVois Recognize Scale {}, {}, {}".format(vert_dist, pt1, pt2), (3, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255,255,255),
                     1, cv2.LINE_AA)
         
         # Write frames/s info from our timer into the edge map (NOTE: does not account for output conversion time):
